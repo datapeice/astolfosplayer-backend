@@ -1,43 +1,43 @@
 # Astolfo's Player Server
 
-REST API сервер для синхронизации музыкальных файлов между устройствами для Astolfo's Player.
+REST API server for synchronizing music files between devices for Astolfo's Player.
 
-## Возможности
+## Features
 
-- ✅ Регистрация и аутентификация пользователей (JWT)
-- ✅ Загрузка музыкальных файлов (MP3, FLAC, WAV, OGG, Opus, M4A, AAC, WMA)
-- ✅ Скачивание треков
-- ✅ Синхронизация по SHA256 хешам
-- ✅ Метаданные треков (название, исполнитель, альбом)
-- ✅ Массовая загрузка файлов
-- ✅ Автоматическое определение дубликатов
+- ✅ User registration and authentication (JWT)
+- ✅ Uploading music files (MP3, FLAC, WAV, OGG, Opus, M4A, AAC, WMA)
+- ✅ Track downloading
+- ✅ Synchronization via SHA256 hashes
+- ✅ Track metadata (title, artist, album)
+- ✅ Bulk file upload
+- ✅ Automatic duplicate detection
 
-## Быстрый старт
+## Quick Start
 
-### 1. Клонировать и перейти в директорию
+### 1. Clone and navigate to the directory
 
 ```bash
 mkdir astolfo-player-server
 cd astolfo-player-server
 ```
 
-### 2. Создать файлы
+### 2. Create files
 
-Создайте файлы из артефактов:
-- `main.py` - основной код сервера
-- `requirements.txt` - зависимости Python
-- `Dockerfile` - образ Docker
-- `docker-compose.yml` - конфигурация контейнеров
+Create files from artifacts:
+- `main.py` - main server code
+- `requirements.txt` - Python dependencies
+- `Dockerfile` - Docker image
+- `docker-compose.yml` - container configuration
 
-### 3. Запустить с Docker Compose
+### 3. Start with Docker Compose
 
 ```bash
 docker-compose up -d
 ```
 
-Сервер будет доступен по адресу: `http://localhost:8000`
+The server will be available at: `http://localhost:8000`
 
-### 4. Проверить работу
+### 4. Check the server
 
 ```bash
 curl http://localhost:8000
@@ -45,9 +45,9 @@ curl http://localhost:8000
 
 ## API Endpoints
 
-### Аутентификация
+### Authentication
 
-**Регистрация**
+**Registration**
 ```http
 POST /api/auth/register
 Content-Type: application/json
@@ -58,7 +58,7 @@ Content-Type: application/json
 }
 ```
 
-**Вход**
+**Login**
 ```http
 POST /api/auth/login
 Content-Type: application/json
@@ -69,7 +69,7 @@ Content-Type: application/json
 }
 ```
 
-Ответ:
+Response:
 ```json
 {
   "access_token": "eyJ...",
@@ -77,27 +77,27 @@ Content-Type: application/json
 }
 ```
 
-### Работа с треками
+### Track Management
 
-**Получить все треки**
+**Get all tracks**
 ```http
 GET /api/tracks
 Authorization: Bearer {token}
 ```
 
-**Получить конкретный трек**
+**Get a specific track**
 ```http
 GET /api/tracks/{track_id}
 Authorization: Bearer {token}
 ```
 
-**Скачать файл**
+**Download file**
 ```http
 GET /api/tracks/{track_id}/file
 Authorization: Bearer {token}
 ```
 
-**Загрузить трек**
+**Upload track**
 ```http
 POST /api/tracks/upload
 Authorization: Bearer {token}
@@ -110,21 +110,21 @@ album: "Album Name" (optional)
 duration: 180 (optional, seconds)
 ```
 
-**Удалить трек**
+**Delete track**
 ```http
 DELETE /api/tracks/{track_id}
 Authorization: Bearer {token}
 ```
 
-### Синхронизация
+### Synchronization
 
-**Получить статус синхронизации**
+**Get synchronization status**
 ```http
 GET /api/sync/status
 Authorization: Bearer {token}
 ```
 
-Ответ:
+Response:
 ```json
 [
   {
@@ -135,7 +135,7 @@ Authorization: Bearer {token}
 ]
 ```
 
-**Массовая загрузка**
+**Bulk upload**
 ```http
 POST /api/sync/batch-upload
 Authorization: Bearer {token}
@@ -144,27 +144,27 @@ Content-Type: multipart/form-data
 files: [file1, file2, file3, ...]
 ```
 
-## Примеры использования с Python
+## Usage Examples with Python
 
-### Регистрация и получение токена
+### Registration and obtaining a token
 
 ```python
 import requests
 
 BASE_URL = "http://localhost:8000"
 
-# Регистрация
+# Registration
 response = requests.post(
     f"{BASE_URL}/api/auth/register",
     json={"username": "testuser", "password": "testpass123"}
 )
 token = response.json()["access_token"]
 
-# Заголовки с авторизацией
+# Authorization headers
 headers = {"Authorization": f"Bearer {token}"}
 ```
 
-### Загрузка трека
+### Uploading a track
 
 ```python
 with open("song.mp3", "rb") as f:
@@ -185,7 +185,7 @@ with open("song.mp3", "rb") as f:
     print(f"Uploaded track: {track['id']}")
 ```
 
-### Синхронизация файлов
+### File synchronization
 
 ```python
 import hashlib
@@ -198,17 +198,17 @@ def calculate_hash(file_path):
             sha256.update(chunk)
     return sha256.hexdigest()
 
-# Получить хеши с сервера
+# Get hashes from server
 response = requests.get(f"{BASE_URL}/api/sync/status", headers=headers)
 server_hashes = {item["file_hash"] for item in response.json()}
 
-# Сканировать локальную папку
+# Scan local folder
 music_folder = Path("./music")
 for music_file in music_folder.glob("*.mp3"):
     file_hash = calculate_hash(music_file)
     
     if file_hash not in server_hashes:
-        # Загрузить новый файл
+        # Upload new file
         with open(music_file, "rb") as f:
             files = {"file": (music_file.name, f, "audio/mpeg")}
             requests.post(
@@ -221,14 +221,14 @@ for music_file in music_folder.glob("*.mp3"):
         print(f"Already exists: {music_file.name}")
 ```
 
-### Скачивание всех треков
+### Downloading all tracks
 
 ```python
-# Получить список всех треков
+# Get list of all tracks
 response = requests.get(f"{BASE_URL}/api/tracks", headers=headers)
 tracks = response.json()
 
-# Скачать каждый трек
+# Download each track
 download_folder = Path("./downloads")
 download_folder.mkdir(exist_ok=True)
 
@@ -247,24 +247,24 @@ for track in tracks:
     print(f"Downloaded: {track['filename']}")
 ```
 
-## Конфигурация
+## Configuration
 
-Настройки задаются через переменные окружения в `docker-compose.yml`:
+Settings are specified via environment variables in `docker-compose.yml`:
 
-- `DATABASE_URL` - строка подключения к PostgreSQL
-- `SECRET_KEY` - секретный ключ для JWT (обязательно изменить в продакшене!)
-- `STORAGE_PATH` - путь для хранения файлов
+- `DATABASE_URL` - PostgreSQL connection string
+- `SECRET_KEY` - secret key for JWT (make sure to change in production!)
+- `STORAGE_PATH` - path for storing files
 
-## Разработка без Docker
+## Development without Docker
 
 ```bash
-# Установить зависимости
+# Install dependencies
 pip install -r requirements.txt
 
-# Установить PostgreSQL локально
-# Создать базу данных musicdb
+# Install PostgreSQL locally
+# Create the musicdb database
 
-# Запустить сервер
+# Start the server
 export DATABASE_URL="postgresql://user:pass@localhost:5432/musicdb"
 export SECRET_KEY="dev-secret-key"
 export STORAGE_PATH="./storage"
@@ -272,37 +272,37 @@ export STORAGE_PATH="./storage"
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-## Безопасность
+## Security
 
-⚠️ **Важно для продакшена:**
+⚠️ **Important for production:**
 
-1. Измените `SECRET_KEY` на случайную строку
-2. Используйте HTTPS (настройте reverse proxy с nginx)
-3. Добавьте rate limiting (например, с slowapi)
-4. Настройте CORS если нужен доступ с веб-клиентов
-5. Включите логирование и мониторинг
-6. Регулярно делайте бэкапы БД и файлов
+1. Change `SECRET_KEY` to a random string
+2. Use HTTPS (set up reverse proxy with nginx)
+3. Add rate limiting (e.g., with slowapi)
+4. Configure CORS if web clients need access
+5. Enable logging and monitoring
+6. Regularly back up the database and files
 
-## Swagger документация
+## Swagger Documentation
 
-После запуска сервера документация API доступна по адресу:
+After starting the server, the API documentation is available at:
 - http://localhost:8000/docs (Swagger UI)
 - http://localhost:8000/redoc (ReDoc)
 
-## Логи
+## Logs
 
-Просмотр логов:
+Viewing logs:
 ```bash
 docker-compose logs -f api
 ```
 
-## Остановка
+## Stopping
 
 ```bash
 docker-compose down
 ```
 
-Удалить все данные (БД и файлы):
+Delete all data (DB and files):
 ```bash
 docker-compose down -v
 ```
