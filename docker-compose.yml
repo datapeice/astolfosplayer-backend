@@ -5,14 +5,14 @@ services:
     build: .
     container_name: astolfo_player_api
     ports:
-      - "8000:8000"  # Внешний порт 8080, внутренний 8000
+      - "8000:8000" 
     environment:
       DATABASE_URL: postgresql://astolfo:astolfopass@db:5432/astolfodb
       SECRET_KEY: astolfo-change-this-secret-key-in-production
       STORAGE_PATH: /app/storage
     volumes:
       - astolfo_music_storage:/app/storage
-      - ./main.py:/app/main.py  # Для разработки - удалить в продакшене
+      - ./main.py:/app/main.py  # For development: mount main.py for live code changes
     depends_on:
       db:
         condition: service_healthy
