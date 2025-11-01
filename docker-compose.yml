@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: astolfo_player_api
+    ports:
+      - "9955:8000"  # Внешний порт 8080, внутренний 8000
+    environment:
+      DATABASE_URL: postgresql://astolfo:astolfopass@db:5432/astolfodb
+      SECRET_KEY: astolfo-change-this-secret-key-in-production
+      STORAGE_PATH: /app/storage
+    volumes:
+      - astolfo_music_storage:/app/storage
+      - ./main.py:/app/main.py  # Для разработки - удалить в продакшене
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - astolfo_network
+
+  db:
+    image: postgres:16-alpine
+    container_name: astolfo_player_db
+    environment:
+      POSTGRES_USER: astolfo
+      POSTGRES_PASSWORD: astolfopass
+      POSTGRES_DB: astolfodb
+    volumes:
+      - astolfo_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U astolfo -d astolfodb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - astolfo_network
+
+volumes:
+  astolfo_music_storage:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: data/storage
+  astolfo_postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: data/postgres
+
+networks:
+  astolfo_network:
+    driver: bridge
