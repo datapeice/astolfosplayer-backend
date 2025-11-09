@@ -220,11 +220,27 @@ async def upload_track(
     
     # Временное сохранение файла для вычисления хеша
     temp_path = user_storage / f"temp_{uuid.uuid4()}"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    
+    # КРИТИЧНО: Читаем весь файл порциями с явным flush
+    try:
+        with open(temp_path, "wb") as buffer:
+            while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                buffer.write(chunk)
+                buffer.flush()  # Гарантируем запись на диск
+            # Финальный flush и fsync для гарантии записи
+            buffer.flush()
+            os.fsync(buffer.fileno())
+    except Exception as e:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise HTTPException(status_code=500, detail=f"File upload failed: {str(e)}")
     
     # Вычисление хеша
-    file_hash = calculate_file_hash(temp_path)
+    try:
+        file_hash = calculate_file_hash(temp_path)
+    except Exception as e:
+        temp_path.unlink()
+        raise HTTPException(status_code=500, detail=f"Hash calculation failed: {str(e)}")
     
     # Проверка существования файла
     existing_track = db.query(Track).filter(
@@ -237,24 +253,39 @@ async def upload_track(
         return existing_track
     
     # Перемещение файла
-    final_path = user_storage / file_hash
-    temp_path.rename(final_path)
+    try:
+        final_path = user_storage / file_hash
+        temp_path.rename(final_path)
+        # Проверяем, что файл действительно переместился
+        if not final_path.exists():
+            raise Exception("File move verification failed")
+    except Exception as e:
+        if temp_path.exists():
+            temp_path.unlink()
+        raise HTTPException(status_code=500, detail=f"File move failed: {str(e)}")
     
     # Создание записи в БД
-    track = Track(
-        user_id=current_user.id,
-        filename=file.filename,
-        file_hash=file_hash,
-        title=title,
-        artist=artist,
-        album=album,
-        duration=duration,
-        file_size=final_path.stat().st_size,
-        mime_type=file.content_type
-    )
-    db.add(track)
-    db.commit()
-    db.refresh(track)
+    try:
+        track = Track(
+            user_id=current_user.id,
+            filename=file.filename,
+            file_hash=file_hash,
+            title=title,
+            artist=artist,
+            album=album,
+            duration=duration,
+            file_size=final_path.stat().st_size,
+            mime_type=file.content_type
+        )
+        db.add(track)
+        db.commit()
+        db.refresh(track)
+    except Exception as e:
+        # Откатываем изменения
+        if final_path.exists():
+            final_path.unlink()
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
     
     return track
 

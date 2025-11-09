@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   api:
-    build: .
+    image: datapeice/astolfos-player-api:latest
     container_name: astolfo_player_api
     ports:
       - "8000:8000" 
