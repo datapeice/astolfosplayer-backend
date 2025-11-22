@@ -1,0 +1,32 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Environment Variables
+.env
+
+# IDEs
+.vscode/
+.idea/
+*.code-workspace
+
+# OS Files
+.DS_Store
+Thumbs.db
+.files/
+Desktop.ini
+
+# Go Workspace
+go.work
+
+# Generated Code
+protos/gen/go/
+
+# Local Databases
+*.db

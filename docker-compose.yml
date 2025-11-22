@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  minio:
+    image: minio/minio
+    container_name: astolfos_minio
+    ports:
+      - "9000:9000"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_BROWSER: "off"
+    volumes:
+      - minio_data:/data
+    command: server /data
+    networks:
+      - astolfos_network
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: build/package/auth/Dockerfile
+    container_name: astolfos_auth
+    ports:
+      - "50051:50051"
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SECRET_KEY: ${SECRET_KEY}
+      SECURITY_KEY: ${SECURITY_KEY}
+    volumes:
+      - sqlite_data:/data
+    networks:
+      - astolfos_network
+
+  file-service:
+    build:
+      context: .
+      dockerfile: build/package/file/Dockerfile
+    container_name: astolfos_file
+    ports:
+      - "50052:50052"
+    environment:
+      S3_ENDPOINT: minio:9000
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      S3_BUCKET: music
+      S3_USE_SSL: "false"
+    depends_on:
+      - minio
+    networks:
+      - astolfos_network
+
+  sync-service:
+    build:
+      context: .
+      dockerfile: build/package/sync/Dockerfile
+    container_name: astolfos_sync
+    ports:
+      - "50053:50053"
+    environment:
+      DATABASE_URL: /data/sync.db
+    volumes:
+      - sqlite_data:/data
+    networks:
+      - astolfos_network
+
+volumes:
+  minio_data:
+  sqlite_data:
+
+
+networks:
+  astolfos_network:
+    driver: bridge
