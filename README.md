@@ -130,11 +130,6 @@ See [`docker-compose.yml`](docker-compose.yml) for the full configuration.
 
 See [`docs/kubernetes_deployment.md`](docs/kubernetes_deployment.md) for detailed Kubernetes deployment instructions.
 
-## Client Migration
-
-For Android developers using Ktor, see [`docs/android_ktor_migration.md`](docs/android_ktor_migration.md) for migration guide from REST to gRPC.
-
-## Testing
 
 ### Using grpcurl
 
