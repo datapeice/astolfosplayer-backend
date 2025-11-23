@@ -4,7 +4,9 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"io"
+	"log"
 	"os"
 
 	"github.com/datapeice/astolfosplayer-backend/internal/config"
@@ -83,32 +85,67 @@ func (s *Server) Upload(stream pb.FileService_UploadServer) error {
 	}
 
 	// Upsert metadata
-	if err := s.DB.Where(Track{Hash: hash}).Assign(track).FirstOrCreate(&track).Error; err != nil {
-		return status.Errorf(codes.Internal, "failed to save metadata: %v", err)
+	var existingTrack Track
+	// Use Unscoped to find even soft-deleted records
+	result := s.DB.Unscoped().Where("hash = ?", hash).First(&existingTrack)
+	if result.Error == nil {
+		// Update existing and restore if deleted
+		updates := map[string]interface{}{
+			"filename":   track.Filename,
+			"title":      track.Title,
+			"artist":     track.Artist,
+			"album":      track.Album,
+			"duration":   track.Duration,
+			"deleted_at": nil, // Restore if deleted
+		}
+		if err := s.DB.Model(&existingTrack).Unscoped().Updates(updates).Error; err != nil {
+			return status.Errorf(codes.Internal, "failed to update metadata: %v", err)
+		}
+	} else if result.Error == gorm.ErrRecordNotFound {
+		// Create new
+		if err := s.DB.Create(&track).Error; err != nil {
+			return status.Errorf(codes.Internal, "failed to save metadata: %v", err)
+		}
+	} else {
+		return status.Errorf(codes.Internal, "failed to check existing metadata: %v", result.Error)
 	}
 
 	return stream.SendAndClose(&pb.UploadResponse{Hash: hash})
 }
 
 func (s *Server) Download(req *pb.DownloadRequest, stream pb.FileService_DownloadServer) error {
+	fmt.Printf("Download request for hash: %s\n", req.Hash)
 	object, err := s.MinioClient.GetObject(context.Background(), s.Config.S3Bucket, req.Hash, minio.GetObjectOptions{})
 	if err != nil {
 		return status.Errorf(codes.NotFound, "file not found: %v", err)
 	}
 	defer object.Close()
 
+	// Check if object exists
+	_, err = object.Stat()
+	if err != nil {
+		errResponse := minio.ToErrorResponse(err)
+		if errResponse.Code == "NoSuchKey" {
+			log.Printf("File %s missing in MinIO, removing from DB", req.Hash)
+			s.DB.Where("hash = ?", req.Hash).Delete(&Track{})
+			return status.Errorf(codes.NotFound, "file not found in storage")
+		}
+		return status.Errorf(codes.Internal, "failed to stat file: %v", err)
+	}
+
 	buffer := make([]byte, 64*1024) // 64KB chunks
 	for {
 		n, err := object.Read(buffer)
+		if n > 0 {
+			if err := stream.Send(&pb.DownloadResponse{Chunk: buffer[:n]}); err != nil {
+				return status.Errorf(codes.Unknown, "failed to send chunk: %v", err)
+			}
+		}
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
 			return status.Errorf(codes.Internal, "failed to read from S3: %v", err)
-		}
-
-		if err := stream.Send(&pb.DownloadResponse{Chunk: buffer[:n]}); err != nil {
-			return status.Errorf(codes.Unknown, "failed to send chunk: %v", err)
 		}
 	}
 

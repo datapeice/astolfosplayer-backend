@@ -19,16 +19,24 @@ type Server struct {
 }
 
 func (s *Server) GetSync(ctx context.Context, req *emptypb.Empty) (*pb.GetSyncResponse, error) {
-	var hashes []string
+	var tracks []file.Track
 
 	// We need to access the tracks table. Since we are in a separate microservice,
 	// we share the database schema/models. Ideally, models should be in a shared package.
 	// For now, we import the model from internal/file since they share the same DB (sqlite_data volume).
 
-	// Query only hashes
-	if err := s.DB.Model(&file.Track{}).Pluck("hash", &hashes).Error; err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to fetch hashes: %v", err)
+	// Query all tracks
+	if err := s.DB.Find(&tracks).Error; err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch tracks: %v", err)
 	}
 
-	return &pb.GetSyncResponse{Hashes: hashes}, nil
+	var files []*pb.FileInfo
+	for _, t := range tracks {
+		files = append(files, &pb.FileInfo{
+			Hash:     t.Hash,
+			Filename: t.Filename,
+		})
+	}
+
+	return &pb.GetSyncResponse{Files: files}, nil
 }

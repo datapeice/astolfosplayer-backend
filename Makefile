@@ -62,7 +62,7 @@ clean:
 # Docker Compose commands
 docker-up:
 	@echo "Starting services with Docker Compose..."
-	docker-compose up -d
+	docker compose up -d
 	@echo "Services started!"
 	@echo "Auth Service: localhost:50051"
 	@echo "File Service: localhost:50052"
@@ -71,13 +71,13 @@ docker-up:
 
 docker-down:
 	@echo "Stopping services..."
-	docker-compose down
+	docker compose down
 
 docker-rebuild:
 	@echo "Rebuilding and restarting services..."
-	docker-compose down
-	docker-compose build --no-cache
-	docker-compose up -d
+	docker compose down
+	docker compose build --no-cache
+	docker compose up -d
 	@echo "Services restarted!"
 
 # Run services locally (development)
