@@ -2,6 +2,8 @@ package sync
 
 import (
 	"context"
+	"path/filepath"
+	"strings"
 
 	"github.com/datapeice/astolfosplayer-backend/internal/config"
 	"github.com/datapeice/astolfosplayer-backend/internal/file"
@@ -30,12 +32,23 @@ func (s *Server) GetSync(ctx context.Context, req *emptypb.Empty) (*pb.GetSyncRe
 		return nil, status.Errorf(codes.Internal, "failed to fetch tracks: %v", err)
 	}
 
+	supportedExtensions := map[string]bool{
+		".mp3":  true,
+		".flac": true,
+		".wav":  true,
+		".ogg":  true,
+		".m4a":  true,
+	}
+
 	var files []*pb.FileInfo
 	for _, t := range tracks {
-		files = append(files, &pb.FileInfo{
-			Hash:     t.Hash,
-			Filename: t.Filename,
-		})
+		ext := strings.ToLower(filepath.Ext(t.Filename))
+		if supportedExtensions[ext] {
+			files = append(files, &pb.FileInfo{
+				Hash:     t.Hash,
+				Filename: t.Filename,
+			})
+		}
 	}
 
 	return &pb.GetSyncResponse{Files: files}, nil
