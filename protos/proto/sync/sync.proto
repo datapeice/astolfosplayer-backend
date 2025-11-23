@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package sync;
+
+option go_package = "github.com/datapeice/astolfosplayer-backend/protos/gen/go/sync";
+
+import "google/protobuf/empty.proto";
+
+service SyncService {
+    rpc GetSync (google.protobuf.Empty) returns (GetSyncResponse);
+}
+
+message FileInfo {
+    string hash = 1;
+    string filename = 2;
+}
+
+message GetSyncResponse {
+    repeated FileInfo files = 1;
+}
